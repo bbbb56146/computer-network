@@ -1,5 +1,11 @@
+//
+//  distvec.cpp
+//  networkHW
+//
+//  Created by 김세연 on 2021/05/17.
+//
 #include <stdio.h>
-#incluade <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 #include <iostream>
 #include <fstream>
@@ -20,7 +26,7 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     if (argc != 4) {//(3) : # of argc check
-        fprintf(stderr, "usage: linkstate topologyfile messagesfile changesfile\n");
+        fprintf(stderr, "usage: distvec topologyfile messagesfile changesfile\n");
         exit(1);
     }
     
@@ -42,9 +48,10 @@ int main(int argc, char* argv[])
         network[s][e] = weight;
         network[e][s] = weight;
     }//while file is end
-    /*(7) read message file*/
-    //graph form as adjmatrix
     
+    
+    /*(7) read message file*/
+    //
     char buffer[MAXMESSAGE];
     while(!fin_message.eof()){
         int s, e;
@@ -54,9 +61,9 @@ int main(int argc, char* argv[])
     
     
     /*(5) end of program */
-    ofstream fout("output_ls.txt");
+    ofstream fout("output_dv.txt");
     //write output file
-    fprintf(stdout,"Complete. Output file written to output_ls.txt.\n");
+    fprintf(stdout,"Complete. Output file written to output_dv.txt.\n");
     fin_message.close();
     fin_changes.close();
     fin_topology.close();
