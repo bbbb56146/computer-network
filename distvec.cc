@@ -1,5 +1,5 @@
 //
-//  linkstate.cc
+//  distvec.cpp
 //  networkHW
 //
 //  Created by 김세연 on 2021/05/17.
@@ -19,10 +19,9 @@
 #define INF 1000000000
 using namespace std;
 //output file open
-ofstream fout("output_ls.txt");
+ofstream fout("output_dv.txt");
 int numNodes;
 int network[MAXNODE][MAXNODE];//adjmatix
-bool N[MAXNODE][MAXNODE];//dijkstra
 struct __massage{
     int s;
     int e;
@@ -35,7 +34,21 @@ struct __routertable {
     vector<int> history;
 };
 struct __routertable routerTable[MAXNODE][MAXNODE];//[cur][dest]
+queue< pair<int,int> > q;//queue for waiting list(sender, receiver)
+void print_table() {
+    for (int idx = 0; idx < numNodes; idx++) {
+        for (int jdx = 0; jdx < numNodes; jdx++) {
+            fout << jdx << ' ' << routerTable[idx][jdx].next << ' ' << routerTable[idx][jdx].dist << endl;
+            //for test
+            cout << jdx << ' ' << routerTable[idx][jdx].next << ' ' << routerTable[idx][jdx].dist << endl;
+        }
+        fout << endl;
+        //test
+        cout << endl;
+    }
+}
 void simulation(int linecnt){
+    cout << "simul" << endl;
     //현재 라우터 테이블을 기반으로 시뮬 값 출력
     for(int line=0;line<linecnt;line++){
         vector<int> history;
@@ -52,42 +65,36 @@ void simulation(int linecnt){
         }
         if(hop!= INF){
             fout <<"from "<<msg[line].s<<" to "<<msg[line].e<<" cost "<<hop<<" hops";
+            cout << "from " << msg[line].s << " to " << msg[line].e << " cost " << hop << " hops";
             for (int i = 0; i < (int)history.size(); i++){
               fout << history[i] << " "; //모든 값 출력 : 0 1 2 3 4
+              cout << history[i] << " "; //모든 값 출력 : 0 1 2 3 4
             }
-            fout<<"massage"<<msg[line].message<<endl;
+            fout<<"massage "<<msg[line].message<<endl;
+            cout << "massage " << msg[line].message << endl;
         }
         else{
-            fout <<"from "<<msg[line].s<<" to "<<msg[line].e<<" cost "<<"infinite"<<" hops unreachable message"<<msg[line].message<<endl;
+            fout <<"from "<<msg[line].s<<" to "<<msg[line].e<<" cost "<<"infinite"<<" hops unreachable message "<<msg[line].message<<endl;
+            cout << "from " << msg[line].s << " to " << msg[line].e << " cost " << "infinite" << " hops unreachable message " << msg[line].message << endl;
         }
     }
     fout <<endl;
     
 }
-bool check(int cur){
-    bool ans = true;
-    for(int dest=0;dest<numNodes;dest++){
-        ans= ans&N[cur][dest];
-        if(ans==false){
-            break;
-        }
-    }
-    return ans;
-}
-void linkstate(){
- //   cout << "LINK start";
+void distvec(){
+    //이웃 노드와 테이블 교환
     
+    //initialize
     for(int cur=0;cur<numNodes;cur++){
-        //initialize
-        N[cur][cur]= true;
-        for(int dest=0;dest<numNodes;dest++){
+        for(int dest=cur;dest<numNodes;dest++){
             if(dest==cur){//자기자신이 목적지일때
                 routerTable[cur][dest].next=cur;
                 routerTable[cur][dest].dist=0;
                 continue;
             }
             if(network[cur][dest]>0){//이읏해 있다면
-                continue;
+                q.push(make_pair(cur, dest));//교환 리스트에 넣음
+                q.push(make_pair(dest, cur));//교환 리스트에 넣음
             }
             else{
                 routerTable[cur][dest].dist = INF;
@@ -96,67 +103,52 @@ void linkstate(){
                 routerTable[dest][cur].next = INF;
             }
         }
-        
-        //loop
-       
-        while(1){
-            if(check(cur)){
-                break;
+    }
+    print_table();
+    while(!q.empty()){
+        int sender = q.front().first;
+        int receiver = q.front().second;
+        q.pop();
+        bool change_flag = false;
+        //리시버는 샌더에게 테이블 받고 자신의 테이블에 반영
+        for(int dest = 0;dest<numNodes;dest++){
+            int poison  = routerTable[sender][dest].dist;
+            if(routerTable[sender][dest].next == receiver){
+                poison = INF;
             }
-            pair<int,int> MIN = make_pair(-1, INF);
-            //find w not in N s.t. routertable[w] is minimum;
-            for(int dest = 0;dest <numNodes;dest++){
-                if(N[cur][dest]){
-                    continue;
-                }
-                if(routerTable[cur][dest].dist<MIN.second){
-                    MIN.first = dest;
-                    MIN.second = routerTable[cur][dest].dist;
-                }
-            }
-            
-            //update
-            for(int dest = 0;dest <numNodes;dest++){
-                if((network[MIN.first][dest]>0)&&(N[cur][dest]==false&&dest!=MIN.first)){
-                    if (routerTable[cur][dest].dist >= MIN.second+routerTable[MIN.first][dest].dist){
-                        if(routerTable[cur][dest].dist == MIN.second+routerTable[MIN.first][dest].dist){
-                            if(routerTable[cur][dest].next <= MIN.first){
-                                continue;
-                            }
-                        }
-                        routerTable[cur][dest].dist = MIN.second+routerTable[MIN.first][dest].dist;
-                        routerTable[cur][dest].next = MIN.first;
-                        N[cur][MIN.first] = true;
+            if(routerTable[receiver][dest].dist>=(routerTable[receiver][sender].dist+poison)){
+                if(routerTable[receiver][dest].dist==(routerTable[receiver][sender].dist+poison)){
+                    //만약 같은 거리라면
+                    if(routerTable[receiver][dest].next <= sender){
+                        // 기존 테이블의 next가 더 작다면
+                        //유지해야함
+                        continue;
                     }
+            
+                }
+                    //작은 거리라면
+                    //업데이트해야함
+                    change_flag = true;
+                    routerTable[receiver][dest].dist =routerTable[receiver][sender].dist+poison;
+                    routerTable[receiver][dest].next = sender;
+			cout<<"change "<<sender<< receiver<<"dest: "<<dest<<endl;
+            }
+        }
+        //변경사항
+        if(change_flag){
+            for(int dest = 0;dest<numNodes;dest++){
+                if(network[receiver][dest]>0){
+                    q.push(make_pair(receiver, dest));
                 }
             }
-            
         }
-        
-    }
-    
-  
-}
-void print_table(){
-    for(int idx=0;idx<numNodes;idx++){
-        for(int jdx=0;jdx<numNodes;jdx++){
-            int tmp = routerTable[idx][jdx].dist;
-            if (tmp == INF) {
-                tmp = 0;
-            }
-            fout <<jdx<<' '<<routerTable[idx][jdx].next<<' '<<tmp<<endl;
-            //for test
-            cout <<jdx<<' '<<routerTable[idx][jdx].next<<' '<<routerTable[idx][jdx].dist<<endl;
-        }
-        fout <<endl;
-        //test
-        cout <<endl;
     }
 }
+
 int main(int argc, char* argv[])
 {
     if (argc != 4) {//(3) : # of argc check
-        fprintf(stderr, "usage: linkstate topologyfile messagesfile changesfile\n");
+        fprintf(stderr, "usage: distvec topologyfile messagesfile changesfile\n");
         exit(1);
     }
     
@@ -176,6 +168,7 @@ int main(int argc, char* argv[])
     while(!fin_topology.eof()){
         int s, e, weight;
         fin_topology >>s>>e>>weight;
+        cout << s << " " << e << ' ' << weight << endl;
         network[s][e] = weight;
         network[e][s] = weight;
         //set router-table
@@ -185,39 +178,40 @@ int main(int argc, char* argv[])
         routerTable[e][s].next= s;
     }//while file is end
     fin_topology.close();
-  //  cout << "top";
+cout<<"top"<<endl<<argv[2]<<endl;
+    
     /*(7) read message file*/
-     //
-    int linecnt = 0;
+    //
+    int linecnt=0;
     char buffer[MAXMESSAGE];
-    while (!fin_message.eof()) {
+    while(!fin_message.eof()){
         int s, e;
-        fin_message >> s >> e;
-        fin_message.getline(buffer, MAXMESSAGE);
+        fin_message >>s>>e;
+	    fin_message.getline(buffer,MAXMESSAGE);
         msg[linecnt].s = s;
         msg[linecnt].e = e;
-        strcpy(msg[linecnt].message, buffer);
- //            cout << buffer << endl;
-        memset(buffer, 0, sizeof(buffer));
-        linecnt++;
- //       cout << linecnt << endl;
+        strcpy(msg[linecnt].message,buffer);
+        cout << buffer << endl;
+	memset(buffer,0,sizeof(buffer));
+
+linecnt++;
     }//while file is end
-//    cout << "end loop" << endl;
     fin_message.close();
-  //  cout << "msg";
+cout<<"msg"<<endl;
     /*make router table*/
-    linkstate();
+    distvec();
     print_table();
     /*send message simulation*/
     simulation(linecnt);
     /*read change file*/
     while(!fin_changes.eof()){
+        cout << "test";
         //change cost
         int s, e, cost;
         fin_changes >>s>>e>> cost;
         network[s][e] = cost;
         network[e][s] = cost;
-        if(cost>0){
+        if(cost>=0){
         //set router-table
         routerTable[s][e].dist= cost;
         routerTable[s][e].next= e;
@@ -226,7 +220,7 @@ int main(int argc, char* argv[])
         }
         
         //update router table
-        linkstate();
+        distvec();
         print_table();
         //send message simulation
         simulation(linecnt);
@@ -237,6 +231,6 @@ int main(int argc, char* argv[])
     fin_changes.close();
     //write output file
     fout.close();
-    fprintf(stdout,"Complete. Output file written to output_ls.txt.\n");
+    fprintf(stdout,"Complete. Output file written to output_dv.txt.\n");
     return 0;
 }

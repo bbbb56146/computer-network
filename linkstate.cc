@@ -10,7 +10,6 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <queue>
 //(15) 노드의 개수는 최대 100개이며, 링크 cost는 양수이며 최대 값은 100, 메시지 스트링의 최대 길이는 1000 byte로 가정하면 된다. Messages와 changes file은 100라인을 넘지 않는다.
 #define MAXNODE 100
 #define MAXCOST 100
@@ -75,7 +74,7 @@ bool check(int cur){
     return ans;
 }
 void linkstate(){
- //   cout << "LINK start";
+    cout << "LINK start";
     
     for(int cur=0;cur<numNodes;cur++){
         //initialize
@@ -185,7 +184,7 @@ int main(int argc, char* argv[])
         routerTable[e][s].next= s;
     }//while file is end
     fin_topology.close();
-  //  cout << "top";
+    cout << "top";
     /*(7) read message file*/
      //
     int linecnt = 0;
@@ -197,14 +196,14 @@ int main(int argc, char* argv[])
         msg[linecnt].s = s;
         msg[linecnt].e = e;
         strcpy(msg[linecnt].message, buffer);
- //            cout << buffer << endl;
+             cout << buffer << endl;
         memset(buffer, 0, sizeof(buffer));
         linecnt++;
- //       cout << linecnt << endl;
+        cout << linecnt << endl;
     }//while file is end
-//    cout << "end loop" << endl;
+    cout << "end loop" << endl;
     fin_message.close();
-  //  cout << "msg";
+    cout << "msg";
     /*make router table*/
     linkstate();
     print_table();
